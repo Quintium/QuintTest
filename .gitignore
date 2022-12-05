@@ -1,0 +1,6 @@
+# Ignore all engine files
+engines/
+!engines/info.txt
+
+# Ignore Python build files
+__pycache__/

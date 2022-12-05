@@ -1,14 +1,11 @@
 import chess, chess.engine
 import multiprocessing, multiprocessing.pool
 from multiprocessing import Pool, Manager, Value
-from Results import Results
-from Engine import Engine
+from Results import Results, SharedResults
 
-def playGames(gamesToPlay: int, timeLimit: float, engines: list, stop: Value) -> tuple:
-    results = Results(engines[0], engines[1], 0, 0, 0, timeLimit)
-
+def playGames(gamesToPlay: int, results: SharedResults) -> None:
     try:
-        engineProcesses = [engine.createProcess() for engine in engines]
+        engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
         board = chess.Board()
 
         for i in range(gamesToPlay):
@@ -19,13 +16,14 @@ def playGames(gamesToPlay: int, timeLimit: float, engines: list, stop: Value) ->
             while (board.outcome(claim_draw=True) == None):
                 engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
                 try:
-                    result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=timeLimit))
+                    result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
                 except chess.engine.EngineError as error:
                     gameString = " ".join(game)
-                    print(f"Error '{error}' occured in engine {engines[engineNr].fullName()} after playing the moves: '{gameString}'")
+                    engineName = results.player1.fullName() if engineNr == 0 else results.player2.fullName()
+                    print(f"Error '{error}' occured in engine {engineName} after playing the moves: '{gameString}'")
                     print(f"Aborting process...")
 
-                    stop.value = 1
+                    results.stopMatch()
                     for engineProcess in engineProcesses:
                         engineProcess.close()
                     return results
@@ -35,35 +33,34 @@ def playGames(gamesToPlay: int, timeLimit: float, engines: list, stop: Value) ->
 
             winnerColor = board.outcome(claim_draw=True).winner
 
-            if winnerColor == None:
-                results.draws += 1
-            else:
-                if winnerColor == chess.WHITE:
-                    winnerPlayer = whitePlayer
+            with results.lock:
+                if winnerColor == None:
+                    results.addDraws(1)
                 else:
-                    winnerPlayer = not whitePlayer
+                    if winnerColor == chess.WHITE:
+                        winnerPlayer = whitePlayer
+                    else:
+                        winnerPlayer = not whitePlayer
 
-                if winnerPlayer == 0:
-                    results.player1Wins += 1
-                else:
-                    results.player2Wins += 1
+                    if winnerPlayer == 0:
+                        results.addPlayer1Wins(1)
+                    else:
+                        results.addPlayer2Wins(1)
 
-            print(f"Game played: {engines[0].fullName()} vs {engines[1].fullName()}")
+                results.printScore()
 
-            if stop.value == 1:
-                print("Aborting process...")
+            if results.wasStopped():
+                print("Aborting process...\n")
                 break
     except Exception as err:
         print(Exception, err)
-        print("Aborting process...")
-        stop.value = 1
+        print("Aborting process...\n")
+        results.stopMatch()
 
     for engineProcess in engineProcesses:
         engineProcess.close()
 
-    return results
-
-def calculateTaskSize(games: int, processes: int):
+def calculateTaskSize(games: int, processes: int) -> int:
     for n in range(1, games):
         taskSize = games / n
         if games % n == 0 and taskSize % 2 == 0 and taskSize * processes <= games: # task size has to be divisor, even and program should take more than one cycle
@@ -71,21 +68,25 @@ def calculateTaskSize(games: int, processes: int):
 
     raise RuntimeError("No fitting task size found, decrease number of processes or change to a more divisible number of games.")
 
-def pairEngines(engines: list, games: int, timeLimit: float, processes: int):
+def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
     global pool
     if not processes:
         processes = int(multiprocessing.cpu_count() / 2)
     taskSize = calculateTaskSize(games, processes)
 
     manager = Manager()
-    stop = manager.Value("i", 0)
+    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, totalGames, manager)
+    sharedResults.printScore()
 
     with Pool(processes) as pool:
-        inputs = [(taskSize, timeLimit, engines, stop)] * round(games / taskSize)
+        inputs = [(taskSize, sharedResults)] * round(games / taskSize)
         try:
-            results = Results.sum(pool.starmap(playGames, inputs))
+            pool.starmap(playGames, inputs)
         except Exception as err:
             print(Exception, err)
-            stop.value = 1
+            sharedResults.stopMatch()
 
-    return results
+    print()
+    print()
+
+    return sharedResults.toResults()

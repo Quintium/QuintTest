@@ -6,11 +6,9 @@ from Results import Results
 def test(engineNames: str, games: int, timeLimit: float, processes: int, outputPath: str):
     engines = [Engine(name, []) for name in engineNames]
 
-    if outputPath:
-        open(outputPath, "w").close()
-
     start = time.time()
-    results = EngineMatch.pairEngines(engines, games, timeLimit, processes)
+    print()
+    results = EngineMatch.pairEngines(engines, games, timeLimit, processes, games)
     timePassed = round(time.time() - start, 2)
 
     statString = results.statString()
