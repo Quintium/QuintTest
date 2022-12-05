@@ -1,6 +1,5 @@
 import math
-from multiprocessing import Value
-
+from multiprocessing import Manager, Value, Lock
 from Engine import Engine
 
 class Results:
@@ -83,13 +82,24 @@ class Results:
         return message
 
 class SharedResults(Results):
-    def __init__(self, player1: Engine, player2: Engine, player1Wins: Value, player2Wins: Value, draws: Value, timeLimit: float):
+    player1: Engine
+    player2: Engine
+    player1Wins: Value
+    player2Wins: Value
+    draws: Value
+    timeLimit: float
+    stop: Value
+    lock: Lock
+
+    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, manager: Manager):
         self.player1 = player1
         self.player2 = player2
-        self.player1Wins = player1Wins
-        self.player2Wins = player2Wins
-        self.draws = draws
+        self.player1Wins = manager.Value("i", player1Wins)
+        self.player2Wins = manager.Value("i", player2Wins)
+        self.draws = manager.Value("i", draws)
         self.timeLimit = timeLimit
+        self.stop = manager.Value("i", 0)
+        self.lock = manager.Lock()
 
     def getPlayer1Wins(self) -> int:
         return self.player1Wins.value
@@ -111,6 +121,12 @@ class SharedResults(Results):
     def addDraws(self, n) -> None:
         #with self.draws.get_lock():
         self.draws.value += n
+
+    def wasStopped(self) -> bool:
+        return self.stop.value == 1
+
+    def stop(self) -> None:
+        self.stop.value = 1
 
     def toResults(self) -> Results:
         return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)

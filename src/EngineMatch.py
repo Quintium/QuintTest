@@ -3,10 +3,9 @@ import multiprocessing, multiprocessing.pool
 from multiprocessing import Pool, Manager, Value
 from Results import Results, SharedResults
 
-def playGames(gamesToPlay: int, engines: list, timeLimit: float, player1Wins: Value, player2Wins: Value, draws: Value, stop: Value) -> None:
+def playGames(gamesToPlay: int, results: SharedResults) -> None:
     try:
-        results = SharedResults(engines[0], engines[1], player1Wins, player2Wins, draws, timeLimit)
-        engineProcesses = [engine.createProcess() for engine in engines]
+        engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
         board = chess.Board()
 
         for i in range(gamesToPlay):
@@ -24,7 +23,7 @@ def playGames(gamesToPlay: int, engines: list, timeLimit: float, player1Wins: Va
                     print(f"Error '{error}' occured in engine {engineName} after playing the moves: '{gameString}'")
                     print(f"Aborting process...")
 
-                    stop.value = 1
+                    results.stop()
                     for engineProcess in engineProcesses:
                         engineProcess.close()
                     return results
@@ -50,13 +49,13 @@ def playGames(gamesToPlay: int, engines: list, timeLimit: float, player1Wins: Va
             print(f"Game played: {results.player1.fullName()} vs {results.player2.fullName()}")
             print(f"Score: {results.getPlayer1Wins()} - {results.getPlayer2Wins()} - {results.getDraws()}")
 
-            if stop.value == 1:
+            if results.wasStopped():
                 print("Aborting process...")
                 break
     except Exception as err:
         print(Exception, err)
         print("Aborting process...")
-        stop.value = 1
+        results.stop()
 
     for engineProcess in engineProcesses:
         engineProcess.close()
@@ -76,19 +75,14 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int) -> 
     taskSize = calculateTaskSize(games, processes)
 
     manager = Manager()
-
-    wins1 = manager.Value("i", 0)
-    wins2 = manager.Value("i", 0)
-    draws = manager.Value("i", 0)
-    stop = manager.Value("i", 0)
+    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, manager)
 
     with Pool(processes) as pool:
-        inputs = [(taskSize, engines, timeLimit, wins1, wins2, draws, stop)] * round(games / taskSize)
+        inputs = [(taskSize, sharedResults)] * round(games / taskSize)
         try:
             pool.starmap(playGames, inputs)
         except Exception as err:
             print(Exception, err)
-            stop.value = 1
+            sharedResults.stop()
 
-    results = Results(engines[0], engines[1], wins1.value, wins2.value, draws.value, timeLimit)
-    return results
+    return sharedResults.toResults()
