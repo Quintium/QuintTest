@@ -23,7 +23,7 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
                     print(f"Error '{error}' occured in engine {engineName} after playing the moves: '{gameString}'")
                     print(f"Aborting process...")
 
-                    results.stop()
+                    results.stopMatch()
                     for engineProcess in engineProcesses:
                         engineProcess.close()
                     return results
@@ -47,8 +47,7 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
                     else:
                         results.addPlayer2Wins(1)
 
-                print(f"Game played: {results.player1.fullName()} vs {results.player2.fullName()}")
-                print(f"Score: {results.getPlayer1Wins()} - {results.getPlayer2Wins()} - {results.getDraws()}")
+                results.printScore()
 
             if results.wasStopped():
                 print("Aborting process...\n")
@@ -56,7 +55,7 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
     except Exception as err:
         print(Exception, err)
         print("Aborting process...\n")
-        results.stop()
+        results.stopMatch()
 
     for engineProcess in engineProcesses:
         engineProcess.close()
@@ -69,14 +68,15 @@ def calculateTaskSize(games: int, processes: int) -> int:
 
     raise RuntimeError("No fitting task size found, decrease number of processes or change to a more divisible number of games.")
 
-def pairEngines(engines: list, games: int, timeLimit: float, processes: int) -> Results:
+def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
     global pool
     if not processes:
         processes = int(multiprocessing.cpu_count() / 2)
     taskSize = calculateTaskSize(games, processes)
 
     manager = Manager()
-    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, manager)
+    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, totalGames, manager)
+    sharedResults.printScore()
 
     with Pool(processes) as pool:
         inputs = [(taskSize, sharedResults)] * round(games / taskSize)
@@ -84,6 +84,9 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int) -> 
             pool.starmap(playGames, inputs)
         except Exception as err:
             print(Exception, err)
-            sharedResults.stop()
+            sharedResults.stopMatch()
+
+    print()
+    print()
 
     return sharedResults.toResults()

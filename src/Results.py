@@ -10,13 +10,14 @@ class Results:
     draws: int
     timeLimit: float
 
-    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float):
+    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, gameTarget: int):
         self.player1 = player1
         self.player2 = player2
         self.player1Wins = player1Wins
         self.player2Wins = player2Wins
         self.draws = draws
         self.timeLimit = timeLimit
+        self.gameTarget = gameTarget
 
     def getPlayer1Wins(self) -> int:
         return self.player1Wins
@@ -69,12 +70,21 @@ class Results:
         unroundedLos = 0.5 * (1 + math.erf((self.getPlayer2Wins() - self.getPlayer1Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
         return round(unroundedLos * 100, 2)
 
+    def printScore(self):
+        progressLength = 40
+
+        progress = self.gameAmount() / self.gameTarget
+        percentage = format(progress * 100, ".2f")
+        progressChars = round(progress * progressLength)
+        progressBar = f"[{'=' * progressChars}{'>' if progressChars < progressLength else ''}{'.' * (progressLength - progressChars - 1)}]"
+        print(f"Match: {self.player1.fullName()} - {self.player2.fullName()}; Progress: {progressBar} {percentage}%; Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}", end="\r")
+
     def statString(self):
         message = ""
         message += f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
         message += f"Time Limit: {self.timeLimit}\n"
         message += f"Games played: {self.gameAmount()}\n"
-        message += f"Final score: {self.getPlayer1Wins()} - {self.getDraws()} - {self.getPlayer2Wins()}\n"
+        message += f"Final score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}\n"
         message += f"Elo difference: {self.eloDifferenceString()}\n"
         message += f"Likelihood of superiority: {self.los()}%\n"
         message += "\n"
@@ -91,13 +101,14 @@ class SharedResults(Results):
     stop: Value
     lock: Lock
 
-    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, manager: Manager):
+    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, gameTarget: int, manager: Manager):
         self.player1 = player1
         self.player2 = player2
         self.player1Wins = manager.Value("i", player1Wins)
         self.player2Wins = manager.Value("i", player2Wins)
         self.draws = manager.Value("i", draws)
         self.timeLimit = timeLimit
+        self.gameTarget = gameTarget
         self.stop = manager.Value("i", 0)
         self.lock = manager.Lock()
 
@@ -111,22 +122,19 @@ class SharedResults(Results):
         return self.draws.value
 
     def addPlayer1Wins(self, n) -> None:
-        #with self.player1Wins.get_lock():
         self.player1Wins.value += n
 
     def addPlayer2Wins(self, n) -> None:
-        #with self.player2Wins.get_lock():
         self.player2Wins.value += n
 
     def addDraws(self, n) -> None:
-        #with self.draws.get_lock():
         self.draws.value += n
 
     def wasStopped(self) -> bool:
         return self.stop.value == 1
 
-    def stop(self) -> None:
+    def stopMatch(self) -> None:
         self.stop.value = 1
 
     def toResults(self) -> Results:
-        return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
+        return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit, self.gameTarget)

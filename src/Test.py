@@ -7,7 +7,7 @@ def test(engineNames: str, games: int, timeLimit: float, processes: int, outputP
     engines = [Engine(name, []) for name in engineNames]
 
     start = time.time()
-    results = EngineMatch.pairEngines(engines, games, timeLimit, processes)
+    results = EngineMatch.pairEngines(engines, games, timeLimit, processes, games)
     timePassed = round(time.time() - start, 2)
 
     statString = results.statString()
