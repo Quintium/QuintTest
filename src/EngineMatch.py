@@ -33,28 +33,29 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
 
             winnerColor = board.outcome(claim_draw=True).winner
 
-            if winnerColor == None:
-                results.addDraws(1)
-            else:
-                if winnerColor == chess.WHITE:
-                    winnerPlayer = whitePlayer
+            with results.lock:
+                if winnerColor == None:
+                    results.addDraws(1)
                 else:
-                    winnerPlayer = not whitePlayer
+                    if winnerColor == chess.WHITE:
+                        winnerPlayer = whitePlayer
+                    else:
+                        winnerPlayer = not whitePlayer
 
-                if winnerPlayer == 0:
-                    results.addPlayer1Wins(1)
-                else:
-                    results.addPlayer2Wins(1)
+                    if winnerPlayer == 0:
+                        results.addPlayer1Wins(1)
+                    else:
+                        results.addPlayer2Wins(1)
 
-            print(f"Game played: {results.player1.fullName()} vs {results.player2.fullName()}")
-            print(f"Score: {results.getPlayer1Wins()} - {results.getPlayer2Wins()} - {results.getDraws()}")
+                print(f"Game played: {results.player1.fullName()} vs {results.player2.fullName()}")
+                print(f"Score: {results.getPlayer1Wins()} - {results.getPlayer2Wins()} - {results.getDraws()}")
 
             if results.wasStopped():
-                print("Aborting process...")
+                print("Aborting process...\n")
                 break
     except Exception as err:
         print(Exception, err)
-        print("Aborting process...")
+        print("Aborting process...\n")
         results.stop()
 
     for engineProcess in engineProcesses:
