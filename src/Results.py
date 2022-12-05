@@ -50,7 +50,7 @@ class Results:
         if self.gameAmount() == 0:
             return float("nan")
 
-        expectedScore = self.player1Score() / self.gameAmount()
+        expectedScore = self.player2Score() / self.gameAmount()
         if expectedScore == 0:
             return 10000
         elif expectedScore == 1:
@@ -67,7 +67,7 @@ class Results:
             return float("nan")
         if self.player1Wins == self.player2Wins:
             return 50
-        unroundedLos = 0.5 * (1 + math.erf((self.getPlayer2Wins() - self.getPlayer1Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
+        unroundedLos = 0.5 * (1 + math.erf((self.getPlayer1Wins() - self.getPlayer2Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
         return round(unroundedLos * 100, 2)
 
     def printScore(self):
