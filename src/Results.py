@@ -1,4 +1,5 @@
 import math
+from multiprocessing import Value
 
 from Engine import Engine
 
@@ -18,16 +19,37 @@ class Results:
         self.draws = draws
         self.timeLimit = timeLimit
 
+    def getPlayer1Wins(self) -> int:
+        return self.player1Wins
+
+    def getPlayer2Wins(self) -> int:
+        return self.player2Wins
+
+    def getDraws(self) -> int:
+        return self.draws
+
+    def addPlayer1Wins(self, n) -> None:
+        self.player1Wins += n
+
+    def addPlayer2Wins(self, n) -> None:
+        self.player2Wins += n
+
+    def addDraws(self, n) -> None:
+        self.draws += n
+
     def gameAmount(self) -> int:
-        return self.player1Wins + self.player2Wins + self.draws
+        return self.getPlayer1Wins() + self.getPlayer2Wins() + self.getDraws()
 
     def player1Score(self) -> int:
-        return self.player1Wins + self.draws / 2
+        return self.getPlayer1Wins() + self.getDraws() / 2
 
     def player2Score(self) -> int:
-        return self.player2Wins + self.draws / 2
+        return self.getPlayer2Wins() + self.getDraws() / 2
 
     def eloDifference(self) -> float:
+        if self.gameAmount() == 0:
+            return float("nan")
+
         expectedScore = self.player1Score() / self.gameAmount()
         if expectedScore == 0:
             return 10000
@@ -41,9 +63,11 @@ class Results:
         return ("+" if eloDiff > 0 else "") + str(eloDiff)
 
     def los(self) -> float: # Likelihood of superiority
+        if self.getPlayer1Wins() + self.getPlayer2Wins() == 0:
+            return float("nan")
         if self.player1Wins == self.player2Wins:
             return 50
-        unroundedLos = 0.5 * (1 + math.erf((self.player2Wins - self.player1Wins) / math.sqrt(2 * (self.player1Wins + self.player2Wins))))
+        unroundedLos = 0.5 * (1 + math.erf((self.getPlayer2Wins() - self.getPlayer1Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
         return round(unroundedLos * 100, 2)
 
     def statString(self):
@@ -51,21 +75,42 @@ class Results:
         message += f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
         message += f"Time Limit: {self.timeLimit}\n"
         message += f"Games played: {self.gameAmount()}\n"
-        message += f"Final score: {self.player1Wins} - {self.draws} - {self.player2Wins}\n"
+        message += f"Final score: {self.getPlayer1Wins()} - {self.getDraws()} - {self.getPlayer2Wins()}\n"
         message += f"Elo difference: {self.eloDifferenceString()}\n"
         message += f"Likelihood of superiority: {self.los()}%\n"
         message += "\n"
 
         return message
 
-    @staticmethod
-    def sum(resultList: list):
-        results = Results(resultList[0].player1, resultList[0].player2, 0, 0, 0, resultList[0].timeLimit)
+class SharedResults(Results):
+    def __init__(self, player1: Engine, player2: Engine, player1Wins: Value, player2Wins: Value, draws: Value, timeLimit: float):
+        self.player1 = player1
+        self.player2 = player2
+        self.player1Wins = player1Wins
+        self.player2Wins = player2Wins
+        self.draws = draws
+        self.timeLimit = timeLimit
 
-        for result in resultList:
-            results.player1Wins += result.player1Wins
-            results.player2Wins += result.player2Wins
-            results.draws += result.draws
+    def getPlayer1Wins(self) -> int:
+        return self.player1Wins.value
 
-        return results
+    def getPlayer2Wins(self) -> int:
+        return self.player2Wins.value
 
+    def getDraws(self) -> int:
+        return self.draws.value
+
+    def addPlayer1Wins(self, n) -> None:
+        #with self.player1Wins.get_lock():
+        self.player1Wins.value += n
+
+    def addPlayer2Wins(self, n) -> None:
+        #with self.player2Wins.get_lock():
+        self.player2Wins.value += n
+
+    def addDraws(self, n) -> None:
+        #with self.draws.get_lock():
+        self.draws.value += n
+
+    def toResults(self) -> Results:
+        return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
