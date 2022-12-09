@@ -1,6 +1,12 @@
-# Ignore all engine files
-engines/
-!engines/info.txt
-
 # Ignore Python build files
 __pycache__/
+
+# Ignore all engine and output files
+engines/*
+output/*
+
+# Ignore files that should be kept while switching branches
+share/*
+
+# Don't ignore READMEs
+!README.md
