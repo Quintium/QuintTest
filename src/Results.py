@@ -134,7 +134,7 @@ class SharedResults(Results):
         return self.gameAmount() >= self.gameTarget
 
     def createProgress(self) -> tqdm:
-        progressBar = tqdm(total=self.gameTarget)
+        progressBar = tqdm(total=self.gameTarget, dynamic_ncols=True, unit="games")
         desc = f"Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
         progressBar.set_description(desc)
         return progressBar
