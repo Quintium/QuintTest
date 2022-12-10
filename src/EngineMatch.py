@@ -1,61 +1,42 @@
+import time
 import chess, chess.engine
 import multiprocessing, multiprocessing.pool
 from multiprocessing import Pool, Manager, Value
 from Results import Results, SharedResults
 
 def playGames(gamesToPlay: int, results: SharedResults) -> None:
-    try:
-        engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
-        board = chess.Board()
+    engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
+    board = chess.Board()
 
-        for i in range(gamesToPlay):
-            board.reset()
-            game = []
-            whitePlayer = i % 2
-            
-            while (board.outcome(claim_draw=True) == None):
-                engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
-                try:
-                    result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
-                except chess.engine.EngineError as error:
-                    gameString = " ".join(game)
-                    engineName = results.player1.fullName() if engineNr == 0 else results.player2.fullName()
-                    print(f"Error '{error}' occured in engine {engineName} after playing the moves: '{gameString}'")
-                    print(f"Aborting process...")
+    for i in range(gamesToPlay):
+        board.reset()
+        game = []
+        whitePlayer = i % 2
+        
+        while (board.outcome(claim_draw=True) == None):
+            engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
+            result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
+                
+            board.push(result.move)
+            game.append(result.move.uci())
 
-                    results.stopMatch()
-                    for engineProcess in engineProcesses:
-                        engineProcess.close()
-                    return results
-                    
-                board.push(result.move)
-                game.append(result.move.uci())
+        winnerColor = board.outcome(claim_draw=True).winner
 
-            winnerColor = board.outcome(claim_draw=True).winner
-
-            with results.lock:
-                if winnerColor == None:
-                    results.addDraws(1)
+        with results.lock:
+            if winnerColor == None:
+                results.addDraws(1)
+            else:
+                if winnerColor == chess.WHITE:
+                    winnerPlayer = whitePlayer
                 else:
-                    if winnerColor == chess.WHITE:
-                        winnerPlayer = whitePlayer
-                    else:
-                        winnerPlayer = not whitePlayer
+                    winnerPlayer = not whitePlayer
 
-                    if winnerPlayer == 0:
-                        results.addPlayer1Wins(1)
-                    else:
-                        results.addPlayer2Wins(1)
+                if winnerPlayer == 0:
+                    results.addPlayer1Wins(1)
+                else:
+                    results.addPlayer2Wins(1)
 
-                results.printScore()
-
-            if results.wasStopped():
-                print("Aborting process...\n")
-                break
-    except Exception as err:
-        print(Exception, err)
-        print("Aborting process...\n")
-        results.stopMatch()
+        results.update()
 
     for engineProcess in engineProcesses:
         engineProcess.close()
@@ -76,17 +57,18 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
 
     manager = Manager()
     sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, totalGames, manager)
-    sharedResults.printScore()
+    progressBar = sharedResults.createProgress()
 
     with Pool(processes) as pool:
         inputs = [(taskSize, sharedResults)] * round(games / taskSize)
-        try:
-            pool.starmap(playGames, inputs)
-        except Exception as err:
-            print(Exception, err)
-            sharedResults.stopMatch()
+        asyncResult = pool.starmap_async(playGames, inputs)
+        
+        while not sharedResults.isDone():
+            sharedResults.waitForUpdate()
+            sharedResults.updateProgress(progressBar)
 
-    print()
+        asyncResult.wait()
+
     print()
 
     return sharedResults.toResults()

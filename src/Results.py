@@ -1,5 +1,6 @@
 import math
-from multiprocessing import Manager, Value, Lock
+from tqdm import tqdm
+from multiprocessing import Manager, Value, Lock, Queue, Event
 from Engine import Engine
 
 class Results:
@@ -10,14 +11,13 @@ class Results:
     draws: int
     timeLimit: float
 
-    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, gameTarget: int):
+    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float):
         self.player1 = player1
         self.player2 = player2
         self.player1Wins = player1Wins
         self.player2Wins = player2Wins
         self.draws = draws
         self.timeLimit = timeLimit
-        self.gameTarget = gameTarget
 
     def getPlayer1Wins(self) -> int:
         return self.player1Wins
@@ -70,15 +70,6 @@ class Results:
         unroundedLos = 0.5 * (1 + math.erf((self.getPlayer1Wins() - self.getPlayer2Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
         return round(unroundedLos * 100, 2)
 
-    def printScore(self):
-        progressLength = 40
-
-        progress = self.gameAmount() / self.gameTarget
-        percentage = format(progress * 100, ".2f")
-        progressChars = round(progress * progressLength)
-        progressBar = f"[{'=' * progressChars}{'>' if progressChars < progressLength else ''}{'.' * (progressLength - progressChars - 1)}]"
-        print(f"Match: {self.player1.fullName()} - {self.player2.fullName()}; Progress: {progressBar} {percentage}%; Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}", end="\r")
-
     def statString(self):
         message = ""
         message += f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
@@ -87,7 +78,6 @@ class Results:
         message += f"Final score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}\n"
         message += f"Elo difference: {self.eloDifferenceString()}\n"
         message += f"Likelihood of superiority: {self.los()}%\n"
-        message += "\n"
 
         return message
 
@@ -98,8 +88,9 @@ class SharedResults(Results):
     player2Wins: Value
     draws: Value
     timeLimit: float
-    stop: Value
+    stop: Event
     lock: Lock
+    updateQueue: Queue
 
     def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, gameTarget: int, manager: Manager):
         self.player1 = player1
@@ -109,8 +100,8 @@ class SharedResults(Results):
         self.draws = manager.Value("i", draws)
         self.timeLimit = timeLimit
         self.gameTarget = gameTarget
-        self.stop = manager.Value("i", 0)
         self.lock = manager.Lock()
+        self.updateQueue = manager.Queue()
 
     def getPlayer1Wins(self) -> int:
         return self.player1Wins.value
@@ -130,11 +121,31 @@ class SharedResults(Results):
     def addDraws(self, n) -> None:
         self.draws.value += n
 
-    def wasStopped(self) -> bool:
-        return self.stop.value == 1
+    def update(self) -> None:
+        self.updateQueue.put(1)
 
-    def stopMatch(self) -> None:
-        self.stop.value = 1
+    def hasUpdate(self) -> bool:
+        return not self.updateQueue.empty()
+
+    def waitForUpdate(self) -> None:
+        self.updateQueue.get()
+
+    def isDone(self) -> None:
+        return self.gameAmount() >= self.gameTarget
+
+    def createProgress(self) -> tqdm:
+        progressBar = tqdm(total=self.gameTarget, dynamic_ncols=True, unit="games")
+        desc = f"Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
+        progressBar.set_description(desc)
+        return progressBar
+
+    def updateProgress(self, progressBar: tqdm):
+        desc = f"Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
+        progressBar.set_description(desc)
+        progressBar.update(1)
+
+        if self.isDone():
+            progressBar.close()
 
     def toResults(self) -> Results:
-        return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit, self.gameTarget)
+        return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
