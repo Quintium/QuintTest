@@ -6,33 +6,21 @@ from tqdm import tqdm
 from inspect import FrameInfo
 from Results import Results, SharedResults, MatchEvent, ErrorEvent
 
-def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
-    def calculateTaskSize(games: int, processes: int) -> int:
-        for n in range(1, games):
-            taskSize = games / n
-            if games % n == 0 and taskSize % 2 == 0 and taskSize * processes <= games: # task size has to be divisor, even and program should take more than one cycle
-                return round(taskSize)
-
-        raise RuntimeError("No fitting task size found, decrease number of processes or change to a more divisible number of games.")
-
+def engineMatch(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
     def handleKeyboardInterrupt(sig: int, frame: FrameInfo):
         sharedResults.stopMatch()
-
-    if not processes:
-        processes = int(multiprocessing.cpu_count() / 2)
-    taskSize = calculateTaskSize(games, processes)
 
     manager = Manager()
     sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, manager)
     progressBar = tqdm(desc=f"Score: {sharedResults.scoreString()}", total=totalGames, dynamic_ncols=True, unit="games")
 
     with Pool(processes) as pool:
-        inputs = [(taskSize, sharedResults)] * round(games / taskSize)
-        asyncResult = pool.starmap_async(playGames, inputs)
+        inputs = [(i % 2, sharedResults) for i in range(games)]
+        asyncResult = pool.starmap_async(engineGame, inputs)
         
         signal.signal(signal.SIGINT, handleKeyboardInterrupt)
         while not asyncResult.ready():
-            time.sleep(0.01)
+            time.sleep(0.1)
             while sharedResults.hasEvent():
                 event = sharedResults.getEvent()
                 if isinstance(event, MatchEvent):
@@ -47,51 +35,49 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
 
     return sharedResults.toResults()
 
-def playGames(gamesToPlay: int, results: SharedResults) -> None:
+def engineGame(whitePlayer: int, results: SharedResults) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     try:
         engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
         board = chess.Board()
-
-        for i in range(gamesToPlay):
-            board.reset()
-            game = []
-            whitePlayer = i % 2
+        game = []
+        
+        while (board.outcome(claim_draw=True) == None) and not results.wasStopped():
+            engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
             
-            while (board.outcome(claim_draw=True) == None) and not results.wasStopped():
-                engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
+            try:
+                result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
+            except chess.engine.EngineError as e:
+                engineName = results.player1.fullName() if engineNr == 0 else results.player2.fullName()
+                gameString = " ".join(game)
+                raise chess.engine.EngineError(f"Engine error occured in engine '{engineName}' after moves: playing the moves '{gameString}'") from e
                 
-                try:
-                    result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
-                except chess.engine.EngineError as e:
-                    engineName = results.player1.fullName() if engineNr == 0 else results.player2.fullName()
-                    gameString = " ".join(game)
-                    raise chess.engine.EngineError(f"Engine error occured in engine '{engineName}' after moves: playing the moves '{gameString}'") from e
-                    
-                board.push(result.move)
-                game.append(result.move.uci())
+            board.push(result.move)
+            game.append(result.move.uci())
 
-            if results.wasStopped():
-                break
+        if results.wasStopped():
+            for engineProcess in engineProcesses:
+                engineProcess.close()
+            return
 
-            winnerColor = board.outcome(claim_draw=True).winner
+        winnerColor = board.outcome(claim_draw=True).winner
 
-            with results.lock:
-                if winnerColor == None:
-                    results.addDraws(1)
+        with results.lock:
+            if winnerColor == None:
+                results.addDraws(1)
+            else:
+                if winnerColor == chess.WHITE:
+                    winnerPlayer = whitePlayer
                 else:
-                    if winnerColor == chess.WHITE:
-                        winnerPlayer = whitePlayer
-                    else:
-                        winnerPlayer = not whitePlayer
+                    winnerPlayer = not whitePlayer
 
-                    if winnerPlayer == 0:
-                        results.addPlayer1Wins(1)
-                    else:
-                        results.addPlayer2Wins(1)
+                if winnerPlayer == 0:
+                    results.addPlayer1Wins(1)
+                else:
+                    results.addPlayer2Wins(1)
 
-            results.putEvent(MatchEvent())
+        results.putEvent(MatchEvent())
 
     except Exception:
         results.putEvent(ErrorEvent(traceback.format_exc()))

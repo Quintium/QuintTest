@@ -3,7 +3,7 @@ from Engine import Engine
 
 def test(engineNames: str, games: int, timeLimit: float, processes: int, outputPath: str):
     engines = [Engine(name, []) for name in engineNames]
-    results = EngineMatch.pairEngines(engines, games, timeLimit, processes, games)
+    results = EngineMatch.engineMatch(engines, games, timeLimit, processes, games)
 
     statString = results.statString()
     print(statString)
