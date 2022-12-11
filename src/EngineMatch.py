@@ -6,6 +6,47 @@ from tqdm import tqdm
 from inspect import FrameInfo
 from Results import Results, SharedResults, MatchEvent, ErrorEvent
 
+def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
+    def calculateTaskSize(games: int, processes: int) -> int:
+        for n in range(1, games):
+            taskSize = games / n
+            if games % n == 0 and taskSize % 2 == 0 and taskSize * processes <= games: # task size has to be divisor, even and program should take more than one cycle
+                return round(taskSize)
+
+        raise RuntimeError("No fitting task size found, decrease number of processes or change to a more divisible number of games.")
+
+    def handleKeyboardInterrupt(sig: int, frame: FrameInfo):
+        sharedResults.stopMatch()
+
+    if not processes:
+        processes = int(multiprocessing.cpu_count() / 2)
+    taskSize = calculateTaskSize(games, processes)
+
+    manager = Manager()
+    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, manager)
+    progressBar = tqdm(desc=f"Score: {sharedResults.scoreString()}", total=totalGames, dynamic_ncols=True, unit="games")
+
+    with Pool(processes) as pool:
+        inputs = [(taskSize, sharedResults)] * round(games / taskSize)
+        asyncResult = pool.starmap_async(playGames, inputs)
+        
+        signal.signal(signal.SIGINT, handleKeyboardInterrupt)
+        while not asyncResult.ready():
+            time.sleep(0.01)
+            while sharedResults.hasEvent():
+                event = sharedResults.getEvent()
+                if isinstance(event, MatchEvent):
+                    progressBar.set_description(f"Score: {sharedResults.scoreString()}")
+                    progressBar.update(1)
+                elif isinstance(event, ErrorEvent):
+                    progressBar.write(event.error)
+
+    asyncResult.wait() 
+    progressBar.close()
+    print()
+
+    return sharedResults.toResults()
+
 def playGames(gamesToPlay: int, results: SharedResults) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -57,44 +98,3 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
 
     for engineProcess in engineProcesses:
         engineProcess.close()
-
-def calculateTaskSize(games: int, processes: int) -> int:
-    for n in range(1, games):
-        taskSize = games / n
-        if games % n == 0 and taskSize % 2 == 0 and taskSize * processes <= games: # task size has to be divisor, even and program should take more than one cycle
-            return round(taskSize)
-
-    raise RuntimeError("No fitting task size found, decrease number of processes or change to a more divisible number of games.")
-
-def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
-    def handleKeyboardInterrupt(sig: int, frame: FrameInfo):
-        sharedResults.stopMatch()
-
-    if not processes:
-        processes = int(multiprocessing.cpu_count() / 2)
-    taskSize = calculateTaskSize(games, processes)
-
-    manager = Manager()
-    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, manager)
-    progressBar = tqdm(desc=f"Score: {sharedResults.scoreString()}", total=totalGames, dynamic_ncols=True, unit="games")
-
-    with Pool(processes) as pool:
-        inputs = [(taskSize, sharedResults)] * round(games / taskSize)
-        asyncResult = pool.starmap_async(playGames, inputs)
-        
-        signal.signal(signal.SIGINT, handleKeyboardInterrupt)
-        while not asyncResult.ready():
-            time.sleep(0.01)
-            while sharedResults.hasEvent():
-                event = sharedResults.getEvent()
-                if isinstance(event, MatchEvent):
-                    progressBar.set_description(f"Score: {sharedResults.scoreString()}")
-                    progressBar.update(1)
-                elif isinstance(event, ErrorEvent):
-                    progressBar.write(event.error)
-
-    asyncResult.wait() 
-    progressBar.close()
-    print()
-
-    return sharedResults.toResults()
