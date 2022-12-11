@@ -1,4 +1,4 @@
-import time, signal
+import time, signal, traceback
 import chess, chess.engine
 import multiprocessing, multiprocessing.pool
 from multiprocessing import Pool, Manager, Value
@@ -46,8 +46,8 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
 
             results.putEvent(MatchEvent())
 
-    except Exception as err:
-        print(err, flush=True)
+    except Exception:
+        results.putEvent(ErrorEvent(traceback.format_exc()))
 
     for engineProcess in engineProcesses:
         engineProcess.close()
@@ -84,6 +84,8 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
                 if isinstance(event, MatchEvent):
                     progressBar.set_description(f"Score: {sharedResults.scoreString()}")
                     progressBar.update(1)
+                elif isinstance(event, ErrorEvent):
+                    progressBar.write(event.error)
 
     asyncResult.wait() 
     progressBar.close()

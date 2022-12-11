@@ -137,7 +137,7 @@ class SharedResults(Results):
 
     def getEvent(self) -> Event:
         return self.eventQueue.get()
-        
+
     def toResults(self) -> Results:
         return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
 
