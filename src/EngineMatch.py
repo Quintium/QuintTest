@@ -3,6 +3,7 @@ import chess, chess.engine
 import multiprocessing, multiprocessing.pool
 from multiprocessing import Pool, Manager, Value
 from Results import Results, SharedResults
+from inspect import FrameInfo
 
 def playGames(gamesToPlay: int, results: SharedResults) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -60,6 +61,11 @@ def calculateTaskSize(games: int, processes: int) -> int:
     raise RuntimeError("No fitting task size found, decrease number of processes or change to a more divisible number of games.")
 
 def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
+    def handleKeyboardInterrupt(sig: int, frame: FrameInfo):
+        progressBar.write("Stopped1")
+        sharedResults.stopMatch()
+        progressBar.write("Stopped2")
+
     if not processes:
         processes = int(multiprocessing.cpu_count() / 2)
     taskSize = calculateTaskSize(games, processes)
@@ -72,15 +78,10 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
         inputs = [(taskSize, sharedResults)] * round(games / taskSize)
         asyncResult = pool.starmap_async(playGames, inputs)
         
-        try:
-            while not sharedResults.isDone():
-                sharedResults.waitForUpdate()
-                sharedResults.updateProgress(progressBar)
-
-        except KeyboardInterrupt:
-            progressBar.write("Stopped1")
-            sharedResults.stopMatch()
-            progressBar.write("Stopped2")
+        signal.signal(signal.SIGINT, handleKeyboardInterrupt)
+        while not sharedResults.isDone():
+            sharedResults.waitForUpdate()
+            sharedResults.updateProgress(progressBar)
 
     asyncResult.wait() 
     progressBar.close()
