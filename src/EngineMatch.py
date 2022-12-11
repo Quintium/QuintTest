@@ -2,8 +2,9 @@ import time, signal
 import chess, chess.engine
 import multiprocessing, multiprocessing.pool
 from multiprocessing import Pool, Manager, Value
-from Results import Results, SharedResults
+from Results import Results, SharedResults, MatchEvent, ErrorEvent
 from inspect import FrameInfo
+from tqdm import tqdm
 
 def playGames(gamesToPlay: int, results: SharedResults) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -43,7 +44,7 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
                     else:
                         results.addPlayer2Wins(1)
 
-            results.update()
+            results.putEvent(MatchEvent())
 
     except Exception as err:
         print(err, flush=True)
@@ -68,8 +69,8 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
     taskSize = calculateTaskSize(games, processes)
 
     manager = Manager()
-    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, totalGames, manager)
-    progressBar = sharedResults.createProgress()
+    sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, manager)
+    progressBar = tqdm(desc=f"Score: {sharedResults.scoreString()}", total=totalGames, dynamic_ncols=True, unit="games")
 
     with Pool(processes) as pool:
         inputs = [(taskSize, sharedResults)] * round(games / taskSize)
@@ -78,9 +79,11 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
         signal.signal(signal.SIGINT, handleKeyboardInterrupt)
         while not asyncResult.ready():
             time.sleep(0.01)
-            if sharedResults.hasUpdate():
-                sharedResults.removeUpdate()
-                sharedResults.updateProgress(progressBar)
+            while sharedResults.hasEvent():
+                event = sharedResults.getEvent()
+                if isinstance(event, MatchEvent):
+                    progressBar.set_description(f"Score: {sharedResults.scoreString()}")
+                    progressBar.update(1)
 
     asyncResult.wait() 
     progressBar.close()
