@@ -1,43 +1,53 @@
-import time
+import time, signal
 import chess, chess.engine
 import multiprocessing, multiprocessing.pool
 from multiprocessing import Pool, Manager, Value
 from Results import Results, SharedResults
 
 def playGames(gamesToPlay: int, results: SharedResults) -> None:
-    engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
-    board = chess.Board()
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    for i in range(gamesToPlay):
-        board.reset()
-        game = []
-        whitePlayer = i % 2
-        
-        while (board.outcome(claim_draw=True) == None):
-            engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
-            result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
-                
-            board.push(result.move)
-            game.append(result.move.uci())
+    try:
+        engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
+        board = chess.Board()
 
-        winnerColor = board.outcome(claim_draw=True).winner
+        for i in range(gamesToPlay):
+            board.reset()
+            game = []
+            whitePlayer = i % 2
+            
+            while (board.outcome(claim_draw=True) == None):
+                engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
+                result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
+                    
+                board.push(result.move)
+                game.append(result.move.uci())
 
-        with results.lock:
-            if winnerColor == None:
-                results.addDraws(1)
-            else:
-                if winnerColor == chess.WHITE:
-                    winnerPlayer = whitePlayer
+            winnerColor = board.outcome(claim_draw=True).winner
+
+            with results.lock:
+                if winnerColor == None:
+                    results.addDraws(1)
                 else:
-                    winnerPlayer = not whitePlayer
+                    if winnerColor == chess.WHITE:
+                        winnerPlayer = whitePlayer
+                    else:
+                        winnerPlayer = not whitePlayer
 
-                if winnerPlayer == 0:
-                    results.addPlayer1Wins(1)
-                else:
-                    results.addPlayer2Wins(1)
+                    if winnerPlayer == 0:
+                        results.addPlayer1Wins(1)
+                    else:
+                        results.addPlayer2Wins(1)
 
-        results.update()
+            results.update()
 
+            print(results.wasStopped(), flush=True)
+            if results.wasStopped():
+                break
+    except Exception as err:
+        print(err, flush=True)
+
+    print("Exiting...", flush=True)
     for engineProcess in engineProcesses:
         engineProcess.close()
 
@@ -50,7 +60,6 @@ def calculateTaskSize(games: int, processes: int) -> int:
     raise RuntimeError("No fitting task size found, decrease number of processes or change to a more divisible number of games.")
 
 def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
-    global pool
     if not processes:
         processes = int(multiprocessing.cpu_count() / 2)
     taskSize = calculateTaskSize(games, processes)
@@ -63,12 +72,18 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
         inputs = [(taskSize, sharedResults)] * round(games / taskSize)
         asyncResult = pool.starmap_async(playGames, inputs)
         
-        while not sharedResults.isDone():
-            sharedResults.waitForUpdate()
-            sharedResults.updateProgress(progressBar)
+        try:
+            while not sharedResults.isDone():
+                sharedResults.waitForUpdate()
+                sharedResults.updateProgress(progressBar)
 
-        asyncResult.wait()
+        except KeyboardInterrupt:
+            progressBar.write("Stopped1")
+            sharedResults.stopMatch()
+            progressBar.write("Stopped2")
 
+    asyncResult.wait() 
+    progressBar.close()
     print()
 
     return sharedResults.toResults()
