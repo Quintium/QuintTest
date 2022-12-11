@@ -1,10 +1,10 @@
 import time, signal, traceback
+import multiprocessing
 import chess, chess.engine
-import multiprocessing, multiprocessing.pool
-from multiprocessing import Pool, Manager, Value
-from Results import Results, SharedResults, MatchEvent, ErrorEvent
-from inspect import FrameInfo
+from multiprocessing import Pool, Manager
 from tqdm import tqdm
+from inspect import FrameInfo
+from Results import Results, SharedResults, MatchEvent, ErrorEvent
 
 def playGames(gamesToPlay: int, results: SharedResults) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -20,7 +20,13 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
             
             while (board.outcome(claim_draw=True) == None) and not results.wasStopped():
                 engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
-                result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
+                
+                try:
+                    result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
+                except chess.engine.EngineError as e:
+                    engineName = results.player1.fullName() if engineNr == 0 else results.player2.fullName()
+                    gameString = " ".join(game)
+                    raise chess.engine.EngineError(f"Engine error occured in engine '{engineName}' after moves: playing the moves '{gameString}'") from e
                     
                 board.push(result.move)
                 game.append(result.move.uci())

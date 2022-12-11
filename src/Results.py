@@ -73,13 +73,12 @@ class Results:
         return f"{self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
 
     def statString(self):
-        message = ""
-        message += f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
-        message += f"Time Limit: {self.timeLimit}\n"
-        message += f"Games played: {self.gameAmount()}\n"
-        message += f"Final score: {self.scoreString()}\n"
-        message += f"Elo difference: {self.eloDifferenceString()}\n"
-        message += f"Likelihood of superiority: {self.los()}%\n"
+        message = (f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
+                   f"Time Limit: {self.timeLimit}\n"
+                   f"Games played: {self.gameAmount()}\n"
+                   f"Final score: {self.scoreString()}\n"
+                   f"Elo difference: {self.eloDifferenceString()}\n"
+                   f"Likelihood of superiority: {self.los()}%\n")
 
         return message
 
