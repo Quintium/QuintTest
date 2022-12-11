@@ -12,4 +12,4 @@ class Engine:
         return (self.name[:-4] if self.name.endswith(".exe") else self.name) + ("_" if self.args else "") + "_".join([str(arg) for arg in self.args])
 
     def createProcess(self) -> chess.engine.SimpleEngine:
-        return chess.engine.SimpleEngine.popen_uci(["engines/" + self.name] + [str(arg) for arg in self.args])
+        return chess.engine.SimpleEngine.popen_uci(["engines/" + self.name] + [str(arg) for arg in self.args], setpgrp=True)

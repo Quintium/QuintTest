@@ -1,5 +1,4 @@
 import math
-from tqdm import tqdm
 from multiprocessing import Manager, Value, Lock, Queue, Event
 from Engine import Engine
 
@@ -70,14 +69,16 @@ class Results:
         unroundedLos = 0.5 * (1 + math.erf((self.getPlayer1Wins() - self.getPlayer2Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
         return round(unroundedLos * 100, 2)
 
+    def scoreString(self):
+        return f"{self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
+
     def statString(self):
-        message = ""
-        message += f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
-        message += f"Time Limit: {self.timeLimit}\n"
-        message += f"Games played: {self.gameAmount()}\n"
-        message += f"Final score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}\n"
-        message += f"Elo difference: {self.eloDifferenceString()}\n"
-        message += f"Likelihood of superiority: {self.los()}%\n"
+        message = (f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
+                   f"Time Limit: {self.timeLimit}\n"
+                   f"Games played: {self.gameAmount()}\n"
+                   f"Final score: {self.scoreString()}\n"
+                   f"Elo difference: {self.eloDifferenceString()}\n"
+                   f"Likelihood of superiority: {self.los()}%\n")
 
         return message
 
@@ -90,18 +91,18 @@ class SharedResults(Results):
     timeLimit: float
     stop: Event
     lock: Lock
-    updateQueue: Queue
+    eventQueue: Queue
 
-    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, gameTarget: int, manager: Manager):
+    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, manager: Manager):
         self.player1 = player1
         self.player2 = player2
         self.player1Wins = manager.Value("i", player1Wins)
         self.player2Wins = manager.Value("i", player2Wins)
         self.draws = manager.Value("i", draws)
         self.timeLimit = timeLimit
-        self.gameTarget = gameTarget
+        self.stop = manager.Event()
         self.lock = manager.Lock()
-        self.updateQueue = manager.Queue()
+        self.eventQueue = manager.Queue()
 
     def getPlayer1Wins(self) -> int:
         return self.player1Wins.value
@@ -121,31 +122,32 @@ class SharedResults(Results):
     def addDraws(self, n) -> None:
         self.draws.value += n
 
-    def update(self) -> None:
-        self.updateQueue.put(1)
+    def stopMatch(self) -> None:
+        self.stop.set()
 
-    def hasUpdate(self) -> bool:
-        return not self.updateQueue.empty()
+    def wasStopped(self) -> bool:
+        return self.stop.is_set()
 
-    def waitForUpdate(self) -> None:
-        self.updateQueue.get()
+    def putEvent(self, event: Event) -> None:
+        self.eventQueue.put(event)
 
-    def isDone(self) -> None:
-        return self.gameAmount() >= self.gameTarget
+    def hasEvent(self) -> bool:
+        return not self.eventQueue.empty()
 
-    def createProgress(self) -> tqdm:
-        progressBar = tqdm(total=self.gameTarget, dynamic_ncols=True, unit="games")
-        desc = f"Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
-        progressBar.set_description(desc)
-        return progressBar
-
-    def updateProgress(self, progressBar: tqdm):
-        desc = f"Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
-        progressBar.set_description(desc)
-        progressBar.update(1)
-
-        if self.isDone():
-            progressBar.close()
+    def getEvent(self) -> Event:
+        return self.eventQueue.get()
 
     def toResults(self) -> Results:
         return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
+
+class Event:
+    pass
+
+class MatchEvent(Event):
+    pass
+
+class ErrorEvent(Event):
+    error: str
+
+    def __init__(self, error: str):
+        self.error = error
