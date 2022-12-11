@@ -100,6 +100,7 @@ class SharedResults(Results):
         self.draws = manager.Value("i", draws)
         self.timeLimit = timeLimit
         self.gameTarget = gameTarget
+        self.stop = manager.Event()
         self.lock = manager.Lock()
         self.updateQueue = manager.Queue()
 
@@ -121,6 +122,12 @@ class SharedResults(Results):
     def addDraws(self, n) -> None:
         self.draws.value += n
 
+    def wasStopped(self) -> bool:
+        return self.stop.is_set()
+
+    def stopMatch(self) -> None:
+        self.stop.set()
+
     def update(self) -> None:
         self.updateQueue.put(1)
 
@@ -139,13 +146,10 @@ class SharedResults(Results):
         progressBar.set_description(desc)
         return progressBar
 
-    def updateProgress(self, progressBar: tqdm):
+    def updateProgress(self, progressBar: tqdm) -> None:
         desc = f"Score: {self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
         progressBar.set_description(desc)
         progressBar.update(1)
-
-        if self.isDone():
-            progressBar.close()
 
     def toResults(self) -> Results:
         return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
