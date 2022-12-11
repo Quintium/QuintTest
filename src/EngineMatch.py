@@ -17,12 +17,15 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
             game = []
             whitePlayer = i % 2
             
-            while (board.outcome(claim_draw=True) == None):
+            while (board.outcome(claim_draw=True) == None) and not results.wasStopped():
                 engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
                 result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
                     
                 board.push(result.move)
                 game.append(result.move.uci())
+
+            if results.wasStopped():
+                break
 
             winnerColor = board.outcome(claim_draw=True).winner
 
@@ -42,13 +45,9 @@ def playGames(gamesToPlay: int, results: SharedResults) -> None:
 
             results.update()
 
-            print(results.wasStopped(), flush=True)
-            if results.wasStopped():
-                break
     except Exception as err:
         print(err, flush=True)
 
-    print("Exiting...", flush=True)
     for engineProcess in engineProcesses:
         engineProcess.close()
 
@@ -62,9 +61,7 @@ def calculateTaskSize(games: int, processes: int) -> int:
 
 def pairEngines(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:
     def handleKeyboardInterrupt(sig: int, frame: FrameInfo):
-        progressBar.write("Stopped1")
         sharedResults.stopMatch()
-        progressBar.write("Stopped2")
 
     if not processes:
         processes = int(multiprocessing.cpu_count() / 2)
@@ -79,9 +76,11 @@ def pairEngines(engines: list, games: int, timeLimit: float, processes: int, tot
         asyncResult = pool.starmap_async(playGames, inputs)
         
         signal.signal(signal.SIGINT, handleKeyboardInterrupt)
-        while not sharedResults.isDone():
-            sharedResults.waitForUpdate()
-            sharedResults.updateProgress(progressBar)
+        while not asyncResult.ready():
+            time.sleep(0.01)
+            if sharedResults.hasUpdate():
+                sharedResults.removeUpdate()
+                sharedResults.updateProgress(progressBar)
 
     asyncResult.wait() 
     progressBar.close()

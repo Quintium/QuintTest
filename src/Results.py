@@ -134,7 +134,7 @@ class SharedResults(Results):
     def hasUpdate(self) -> bool:
         return not self.updateQueue.empty()
 
-    def waitForUpdate(self) -> None:
+    def removeUpdate(self) -> None:
         self.updateQueue.get()
 
     def isDone(self) -> None:
