@@ -1,7 +1,10 @@
 import argparse
+import multiprocessing
 import Test
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
+
     arger = argparse.ArgumentParser()
 
     subparsers = arger.add_subparsers(dest="command")

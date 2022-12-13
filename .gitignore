@@ -1,5 +1,8 @@
-# Ignore Python build files
+# Ignore Python/Pyinstaller build files
 __pycache__/
+*.spec
+temp/
+build/
 
 # Ignore all engine and output files
 engines/*
