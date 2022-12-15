@@ -2,6 +2,7 @@ import math
 from multiprocessing import Manager, Value, Lock, Queue, Event
 from Engine import Engine
 
+# Class that contains results of an engine match
 class Results:
     player1: Engine
     player2: Engine
@@ -10,6 +11,7 @@ class Results:
     draws: int
     timeLimit: float
 
+    # Create results based ong given stats
     def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float):
         self.player1 = player1
         self.player2 = player2
@@ -18,6 +20,7 @@ class Results:
         self.draws = draws
         self.timeLimit = timeLimit
 
+    # Get match stats
     def getPlayer1Wins(self) -> int:
         return self.player1Wins
 
@@ -27,6 +30,7 @@ class Results:
     def getDraws(self) -> int:
         return self.draws
 
+    # Change match stats
     def addPlayer1Wins(self, n) -> None:
         self.player1Wins += n
 
@@ -36,6 +40,7 @@ class Results:
     def addDraws(self, n) -> None:
         self.draws += n
 
+    # More match stats not stored in variables
     def gameAmount(self) -> int:
         return self.getPlayer1Wins() + self.getPlayer2Wins() + self.getDraws()
 
@@ -45,6 +50,7 @@ class Results:
     def player2Score(self) -> int:
         return self.getPlayer2Wins() + self.getDraws() / 2
 
+    # Calculate elo difference of engines after match
     def eloDifference(self) -> float:
         if self.gameAmount() == 0:
             return float("nan")
@@ -57,21 +63,23 @@ class Results:
         else:
             return round(400 * math.log10(1 / expectedScore - 1), 2)
 
+    # Convert elo difference to string
     def eloDifferenceString(self) -> str:   
         eloDiff = self.eloDifference()
         return ("+" if eloDiff > 0 else "") + str(eloDiff)
 
-    def los(self) -> float: # Likelihood of superiority
+    # Calculate likelihood of superiority: likelihood that engine 1 is superior to engine 2
+    def los(self) -> float:
         if self.getPlayer1Wins() + self.getPlayer2Wins() == 0:
-            return float("nan")
-        if self.player1Wins == self.player2Wins:
-            return 50
+            return float("nan") # No LOS calculatable
         unroundedLos = 0.5 * (1 + math.erf((self.getPlayer1Wins() - self.getPlayer2Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
         return round(unroundedLos * 100, 2)
 
+    # Create string out of score
     def scoreString(self):
         return f"{self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
 
+    # Convert stats to multi-line string
     def statString(self):
         message = (f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
                    f"Time Limit: {self.timeLimit}\n"
@@ -82,6 +90,7 @@ class Results:
 
         return message
 
+# Class for sharing results between processes using multiprocessing
 class SharedResults(Results):
     player1: Engine
     player2: Engine
@@ -89,10 +98,11 @@ class SharedResults(Results):
     player2Wins: Value
     draws: Value
     timeLimit: float
-    stop: Event
-    lock: Lock
-    eventQueue: Queue
+    stop: Event # Event for stopping match prematurely
+    lock: Lock # Lock for incrementing wins/draws
+    eventQueue: Queue # Queue for events from child processes to main process
 
+    # Create shared results using stats and multiprocessing manager
     def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, manager: Manager):
         self.player1 = player1
         self.player2 = player2
@@ -104,6 +114,7 @@ class SharedResults(Results):
         self.lock = manager.Lock()
         self.eventQueue = manager.Queue()
 
+    # Get match stats
     def getPlayer1Wins(self) -> int:
         return self.player1Wins.value
 
@@ -113,6 +124,7 @@ class SharedResults(Results):
     def getDraws(self) -> int:
         return self.draws.value
 
+    # Change match stats
     def addPlayer1Wins(self, n) -> None:
         self.player1Wins.value += n
 
@@ -122,12 +134,14 @@ class SharedResults(Results):
     def addDraws(self, n) -> None:
         self.draws.value += n
 
+    # Stopping matches
     def stopMatch(self) -> None:
         self.stop.set()
 
     def wasStopped(self) -> bool:
         return self.stop.is_set()
 
+    # Managing events
     def putEvent(self, event: Event) -> None:
         self.eventQueue.put(event)
 
@@ -137,15 +151,19 @@ class SharedResults(Results):
     def getEvent(self) -> Event:
         return self.eventQueue.get()
 
+    # Converting to pure results object
     def toResults(self) -> Results:
         return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
 
+# General class for events
 class Event:
     pass
 
+# Event for completed match
 class MatchEvent(Event):
     pass
 
+# Event for error encountered
 class ErrorEvent(Event):
     error: str
 
