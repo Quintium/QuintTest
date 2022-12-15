@@ -16,4 +16,4 @@ class Engine:
 
     # Create engine process for engine
     def createProcess(self) -> chess.engine.SimpleEngine:
-        return chess.engine.SimpleEngine.popen_uci(["engines/" + self.name] + [str(arg) for arg in self.args], setpgrp=True)
+        return chess.engine.SimpleEngine.popen_uci(["engines/" + self.name] + [str(arg) for arg in self.args], setpgrp=True) # New process group, so keyboard interrupts aren't passed on

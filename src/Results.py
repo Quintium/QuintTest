@@ -124,15 +124,18 @@ class SharedResults(Results):
     def getDraws(self) -> int:
         return self.draws.value
 
-    # Change match stats
+    # Change match stats (with lock since increments of multiprocessing.Value are not atomic)
     def addPlayer1Wins(self, n) -> None:
-        self.player1Wins.value += n
+        with self.lock:
+            self.player1Wins.value += n
 
     def addPlayer2Wins(self, n) -> None:
-        self.player2Wins.value += n
+        with self.lock:
+            self.player2Wins.value += n
 
     def addDraws(self, n) -> None:
-        self.draws.value += n
+        with self.lock:
+            self.draws.value += n
 
     # Stopping matches
     def stopMatch(self) -> None:
