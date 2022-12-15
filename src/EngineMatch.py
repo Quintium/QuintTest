@@ -12,6 +12,8 @@ def engineMatch(engines: list, games: int, timeLimit: float, processes: int, tot
 
     manager = Manager()
     sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeLimit, manager)
+
+    print(f"Engine match: {engines[0].fullName()} vs {engines[1].fullName()}")
     progressBar = tqdm(desc=f"Score: {sharedResults.scoreString()}", total=totalGames, dynamic_ncols=True, unit="games")
 
     with Pool(processes) as pool:
