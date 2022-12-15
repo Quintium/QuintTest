@@ -51,13 +51,13 @@ def engineMatch(engines: list, games: int, timeLimit: float, processes: int, tot
     return sharedResults.toResults()
 
 # Play an engine game in a child process
-def engineGame(whitePlayer: int, results: SharedResults) -> None:
+def engineGame(whiteEngine: int, results: SharedResults) -> None:
     # Ignore keyboard interrupts as they are handled by the main process
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     try:
         # Create processes from engines
-        engineProcesses = [results.player1.createProcess(), results.player2.createProcess()]
+        engineProcesses = [results.engine1.createProcess(), results.engine2.createProcess()]
 
         # Create new chess board
         board = chess.Board()
@@ -66,14 +66,14 @@ def engineGame(whitePlayer: int, results: SharedResults) -> None:
         # Play chess moves until the game ends or child process is aborted
         while (board.outcome(claim_draw=True) == None) and not results.wasStopped():
             # Check which engine's move it is
-            engineNr = whitePlayer if board.turn == chess.WHITE else not whitePlayer
+            engineNr = whiteEngine if board.turn == chess.WHITE else not whiteEngine
             
             try:
                 # Get the engine's move choice
                 result = engineProcesses[engineNr].play(board, chess.engine.Limit(time=results.timeLimit))
             except chess.engine.EngineError as e:
                 # Handle engine errors by passing on a string of played moves to the error
-                engineName = results.player1.fullName() if engineNr == 0 else results.player2.fullName()
+                engineName = results.engine1.fullName() if engineNr == 0 else results.engine2.fullName()
                 gameString = " ".join(game)
                 raise chess.engine.EngineError(f"Engine error occured in engine '{engineName}' after moves: playing the moves '{gameString}'") from e
                 
@@ -95,14 +95,14 @@ def engineGame(whitePlayer: int, results: SharedResults) -> None:
             results.addDraws(1)
         else:
             if winnerColor == chess.WHITE:
-                winnerPlayer = whitePlayer
+                winnerEngine = whiteEngine
             else:
-                winnerPlayer = not whitePlayer
+                winnerEngine = not whiteEngine
 
-            if winnerPlayer == 0:
-                results.addPlayer1Wins(1)
+            if winnerEngine == 0:
+                results.addEngine1Wins(1)
             else:
-                results.addPlayer2Wins(1)
+                results.addEngine2Wins(1)
 
         # Pass on that the event was completed
         results.putEvent(MatchEvent())

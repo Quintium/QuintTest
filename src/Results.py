@@ -4,58 +4,58 @@ from Engine import Engine
 
 # Class that contains results of an engine match
 class Results:
-    player1: Engine
-    player2: Engine
-    player1Wins: int
-    player2Wins: int
+    engine1: Engine
+    engine2: Engine
+    engine1Wins: int
+    engine2Wins: int
     draws: int
     timeLimit: float
 
     # Create results based ong given stats
-    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float):
-        self.player1 = player1
-        self.player2 = player2
-        self.player1Wins = player1Wins
-        self.player2Wins = player2Wins
+    def __init__(self, engine1: Engine, engine2: Engine, engine1Wins: int, engine2Wins: int, draws: int, timeLimit: float):
+        self.engine1 = engine1
+        self.engine2 = engine2
+        self.engine1Wins = engine1Wins
+        self.engine2Wins = engine2Wins
         self.draws = draws
         self.timeLimit = timeLimit
 
     # Get match stats
-    def getPlayer1Wins(self) -> int:
-        return self.player1Wins
+    def getEngine1Wins(self) -> int:
+        return self.engine1Wins
 
-    def getPlayer2Wins(self) -> int:
-        return self.player2Wins
+    def getEngine2Wins(self) -> int:
+        return self.engine2Wins
 
     def getDraws(self) -> int:
         return self.draws
 
     # Change match stats
-    def addPlayer1Wins(self, n) -> None:
-        self.player1Wins += n
+    def addEngine1Wins(self, n) -> None:
+        self.engine1Wins += n
 
-    def addPlayer2Wins(self, n) -> None:
-        self.player2Wins += n
+    def addEngine2Wins(self, n) -> None:
+        self.engine2Wins += n
 
     def addDraws(self, n) -> None:
         self.draws += n
 
     # More match stats not stored in variables
     def gameAmount(self) -> int:
-        return self.getPlayer1Wins() + self.getPlayer2Wins() + self.getDraws()
+        return self.getEngine1Wins() + self.getEngine2Wins() + self.getDraws()
 
-    def player1Score(self) -> int:
-        return self.getPlayer1Wins() + self.getDraws() / 2
+    def engine1Score(self) -> int:
+        return self.getEngine1Wins() + self.getDraws() / 2
 
-    def player2Score(self) -> int:
-        return self.getPlayer2Wins() + self.getDraws() / 2
+    def engine2Score(self) -> int:
+        return self.getEngine2Wins() + self.getDraws() / 2
 
     # Calculate elo difference of engines after match
     def eloDifference(self) -> float:
         if self.gameAmount() == 0:
             return float("nan")
 
-        expectedScore = self.player2Score() / self.gameAmount()
+        expectedScore = self.engine2Score() / self.gameAmount()
         if expectedScore == 0:
             return 10000
         elif expectedScore == 1:
@@ -70,18 +70,18 @@ class Results:
 
     # Calculate likelihood of superiority: likelihood that engine 1 is superior to engine 2
     def los(self) -> float:
-        if self.getPlayer1Wins() + self.getPlayer2Wins() == 0:
+        if self.getEngine1Wins() + self.getEngine2Wins() == 0:
             return float("nan") # No LOS calculatable
-        unroundedLos = 0.5 * (1 + math.erf((self.getPlayer1Wins() - self.getPlayer2Wins()) / math.sqrt(2 * (self.getPlayer1Wins() + self.getPlayer2Wins()))))
+        unroundedLos = 0.5 * (1 + math.erf((self.getEngine1Wins() - self.getEngine2Wins()) / math.sqrt(2 * (self.getEngine1Wins() + self.getEngine2Wins()))))
         return round(unroundedLos * 100, 2)
 
     # Create string out of score
     def scoreString(self):
-        return f"{self.getPlayer1Wins()} - {self.getPlayer2Wins()} - {self.getDraws()}"
+        return f"{self.getEngine1Wins()} - {self.getEngine2Wins()} - {self.getDraws()}"
 
     # Convert stats to multi-line string
     def statString(self):
-        message = (f"Engine match: {self.player1.fullName()} vs {self.player2.fullName()}:\n"
+        message = (f"Engine match: {self.engine1.fullName()} vs {self.engine2.fullName()}:\n"
                    f"Time Limit: {self.timeLimit}\n"
                    f"Games played: {self.gameAmount()}\n"
                    f"Final score: {self.scoreString()}\n"
@@ -92,10 +92,10 @@ class Results:
 
 # Class for sharing results between processes using multiprocessing
 class SharedResults(Results):
-    player1: Engine
-    player2: Engine
-    player1Wins: Value
-    player2Wins: Value
+    engine1: Engine
+    engine2: Engine
+    engine1Wins: Value
+    engine2Wins: Value
     draws: Value
     timeLimit: float
     stop: Event # Event for stopping match prematurely
@@ -103,11 +103,11 @@ class SharedResults(Results):
     eventQueue: Queue # Queue for events from child processes to main process
 
     # Create shared results using stats and multiprocessing manager
-    def __init__(self, player1: Engine, player2: Engine, player1Wins: int, player2Wins: int, draws: int, timeLimit: float, manager: Manager):
-        self.player1 = player1
-        self.player2 = player2
-        self.player1Wins = manager.Value("i", player1Wins)
-        self.player2Wins = manager.Value("i", player2Wins)
+    def __init__(self, engine1: Engine, engine2: Engine, engine1Wins: int, engine2Wins: int, draws: int, timeLimit: float, manager: Manager):
+        self.engine1 = engine1
+        self.engine2 = engine2
+        self.engine1Wins = manager.Value("i", engine1Wins)
+        self.engine2Wins = manager.Value("i", engine2Wins)
         self.draws = manager.Value("i", draws)
         self.timeLimit = timeLimit
         self.stop = manager.Event()
@@ -115,23 +115,23 @@ class SharedResults(Results):
         self.eventQueue = manager.Queue()
 
     # Get match stats
-    def getPlayer1Wins(self) -> int:
-        return self.player1Wins.value
+    def getEngine1Wins(self) -> int:
+        return self.engine1Wins.value
 
-    def getPlayer2Wins(self) -> int:
-        return self.player2Wins.value
+    def getEngine2Wins(self) -> int:
+        return self.engine2Wins.value
 
     def getDraws(self) -> int:
         return self.draws.value
 
     # Change match stats (with lock since increments of multiprocessing.Value are not atomic)
-    def addPlayer1Wins(self, n) -> None:
+    def addEngine1Wins(self, n) -> None:
         with self.lock:
-            self.player1Wins.value += n
+            self.engine1Wins.value += n
 
-    def addPlayer2Wins(self, n) -> None:
+    def addEngine2Wins(self, n) -> None:
         with self.lock:
-            self.player2Wins.value += n
+            self.engine2Wins.value += n
 
     def addDraws(self, n) -> None:
         with self.lock:
@@ -156,7 +156,7 @@ class SharedResults(Results):
 
     # Converting to pure results object
     def toResults(self) -> Results:
-        return Results(self.player1, self.player2, self.getPlayer1Wins(), self.getPlayer2Wins(), self.getDraws(), self.timeLimit)
+        return Results(self.engine1, self.engine2, self.getEngine1Wins(), self.getEngine2Wins(), self.getDraws(), self.timeLimit)
 
 # General class for events
 class Event:
