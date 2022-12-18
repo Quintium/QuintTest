@@ -12,10 +12,8 @@ class Engine:
         self.name = name
         self.args = args
 
-        # Save path of engine, if no path is found return error
+        # Save path of engine
         self.path = self.getPath()
-        if self.path == None:
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), "[engines/]" + self.name)
 
     # Give full name of engine, potentially stripping of .exe and adding command line arguments
     def fullName(self) -> str:
@@ -34,7 +32,7 @@ class Engine:
     # Check if a path points to an executable
     def pathExec(self, path: str) -> bool:
         try:
-            # Try to run file with path, exit after 1ms, return False if file exits after less than 1ms (engines should wait for output)
+            # Try to run file with path
             p = subprocess.Popen(path, stdout=subprocess.DEVNULL)
             p.terminate()
             return True
@@ -55,7 +53,8 @@ class Engine:
         if self.pathExec("engines/" + self.name):
             return "engines/" + self.name
         
-        return None
+        # If no path is found return error
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), "[engines/]" + self.name)
 
     # Create engine process for engine
     def createProcess(self) -> chess.engine.SimpleEngine:
