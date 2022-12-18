@@ -1,4 +1,4 @@
-import os, shutil
+import os, shutil, glob, subprocess
 import chess, chess.engine
 
 # Class for managing engines and their executables
@@ -7,7 +7,7 @@ class Engine:
     args: list
 
     # Create engine based on name and command line arguments
-    def __init__(self, name, args):
+    def __init__(self, name: str, args: list):
         self.name = name
         self.args = args
 
@@ -25,14 +25,30 @@ class Engine:
 
         return name
 
+    # Check if a path points to an executable
+    def pathExec(self, path: str) -> bool:
+        try:
+            # Try to run file with path, exit after 1ms, return False if file exits after less than 1ms (engines should wait for output)
+            subprocess.run(path, check=True, timeout=0.001, stdout=subprocess.DEVNULL)
+            return False
+        except FileNotFoundError:
+            # Return False if file isn't found
+            return False
+        except subprocess.CalledProcessError:
+            # Return False if file can't be called
+            return False
+        except subprocess.TimeoutExpired:
+            # Return True if file runs more than 1ms
+            return True
+
     # Get path of engine executable
     def path(self) -> None:
         # Check if file exists in main directory
-        if shutil.which(self.name, os.X_OK):
+        if self.pathExec(self.name):
             return self.name
 
         # Check if file exists in engine directory
-        if shutil.which("engines/" + self.name, os.X_OK):
+        if self.pathExec("engines/" + self.name):
             return "engines/" + self.name
         
         raise RuntimeError(f"No executable found at [engines\]{self.name}")
