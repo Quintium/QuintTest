@@ -1,4 +1,4 @@
-import os, shutil, glob, subprocess, errno
+import os, subprocess, errno
 import chess, chess.engine
 
 # Class for managing engines and their executables
