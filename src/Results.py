@@ -1,6 +1,6 @@
 import math
 from multiprocessing import Manager, Value, Lock, Queue, Event
-from Engine import Engine
+from src.Engine import Engine
 
 # Class that contains results of an engine match
 class Results:

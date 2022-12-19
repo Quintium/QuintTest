@@ -3,7 +3,7 @@ import chess, chess.engine
 from multiprocessing import Pool, Manager
 from tqdm import tqdm
 from inspect import FrameInfo
-from Results import Results, SharedResults, MatchEvent, ErrorEvent
+from src.Results import Results, SharedResults, MatchEvent, ErrorEvent
 
 # Play match between two engines
 def engineMatch(engines: list, games: int, timeLimit: float, processes: int, totalGames: int) -> Results:

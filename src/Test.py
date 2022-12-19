@@ -1,5 +1,5 @@
-import EngineMatch
-from Engine import Engine
+import src.EngineMatch
+from src.Engine import Engine
 
 # Function for testing multiple engines against one base engine
 def test(testEngineNames: list, baseEngineName: str, games: int, timeLimit: float, processes: int, outputName: str):
@@ -11,7 +11,7 @@ def test(testEngineNames: list, baseEngineName: str, games: int, timeLimit: floa
     for testEngineName in testEngineNames:
         # Complete engine match
         testEngine = Engine(testEngineName, [])
-        results = EngineMatch.engineMatch([testEngine, baseEngine], games, timeLimit, processes, games)
+        results = src.EngineMatch.engineMatch([testEngine, baseEngine], games, timeLimit, processes, games)
 
         # Print out match stats
         statString = results.statString()
