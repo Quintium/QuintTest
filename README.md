@@ -6,7 +6,7 @@ QuintTest is a CLI program for testing chess engines.
 The `test` command allows you to compare the performance of one or multiple chess engines against a base engine. It plays a specified number of games between the engines, using the specified time control per move. You can also specify the number of games to run simultaneously (concurrency), and the output path for the test results.
 
 #### Usage:
-QuintTest test TEST_ENGINES [TEST_ENGINES ...] BASE_ENGINE [OPTIONS]
+```QuintTest test TEST_ENGINES [TEST_ENGINES ...] BASE_ENGINE [OPTIONS]```
 
 #### Options:
 ```
