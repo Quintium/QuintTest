@@ -1,4 +1,4 @@
-import os, subprocess, errno
+import sys, os, subprocess, errno
 import chess, chess.engine
 
 # Class for managing engines and their executables
@@ -50,11 +50,12 @@ class Engine:
             return self.name
 
         # Check if file exists in engine directory
-        if self.pathExec("engines/" + self.name):
-            return "engines/" + self.name
+        installedPath = os.path.dirname(os.path.abspath(sys.argv[0])) + "\\engines\\" + self.name
+        if self.pathExec(installedPath):
+            return installedPath
         
         # If no path is found return error
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), "[engines/]" + self.name)
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.name)
 
     # Create engine process for engine
     def createProcess(self) -> chess.engine.SimpleEngine:

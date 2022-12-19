@@ -14,11 +14,11 @@ pip install -r requirements.txt
 Afterwards, add the QuintTest directory to your PATH environment variable, so it can be accessed from any directory.
 
 ### Usage
-To test engines, you can either put them into the `engines/` directory and run QuintTest from the QuintTest repository, or run QuintTest in a directory where all of the required engines are located. 
+To add an engine, you can either put it into the `engines/` directory or run QuintTest in a directory where the tested engine is located. 
 
-To run QuintTest, open the terminal in the desired directory and run your desired command:
+To run QuintTest, run the following command in a terminal:
 
-```python src/QuintTest.py ...```
+`python QuintTest.py ...`
 
 The available commands are:
 - test
