@@ -1,8 +1,12 @@
 import src.EngineMatch
 from src.Engine import Engine
+from src.TimeControl import TimeControl
 
 # Function for testing multiple engines against one base engine
-def test(testEngineNames: list, baseEngineName: str, games: int, timeLimit: float, processes: int, outputName: str):
+def test(testEngineNames: list, baseEngineName: str, games: int, timeControl: str, processes: int, outputName: str):
+    # Parse time control string
+    timeControl = TimeControl(timeControl)
+
     # Save output string
     outputString = ""
 
@@ -11,7 +15,7 @@ def test(testEngineNames: list, baseEngineName: str, games: int, timeLimit: floa
     for testEngineName in testEngineNames:
         # Complete engine match
         testEngine = Engine(testEngineName, [])
-        results = src.EngineMatch.engineMatch([testEngine, baseEngine], games, timeLimit, processes, games)
+        results = src.EngineMatch.engineMatch([testEngine, baseEngine], games, timeControl, processes, games)
 
         # Print out match stats
         statString = results.statString()
