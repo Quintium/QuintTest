@@ -35,7 +35,7 @@ The `test` command allows you to compare the performance of one or multiple ches
 -g, --games GAMES                       Number of games to play in an engine match       required
 -t, --time SECONDS                      Time control in seconds per move                 required
 -c, --concurrency CONCURRENCY           Number of games to run simultaneously            optional - default: 1
--o, --output OUTPUT_PATH                Path for test results                            optional - default: None
+-o, --output OUTPUT_NAME                Output name for test results                     optional - default: None
 ```
 
 #### Example
