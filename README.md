@@ -3,7 +3,11 @@ QuintTest is a CLI program for testing chess engines.
 
 ## Docs
 ### Installation
-To install QuintTest, clone the repository and install the requirements with pip. Make sure pip is installed on your machine. Feel free to use venv to contain the installed libraries inside the project.
+#### Release
+To install a released version of QuintTest, download the latest QuintTest release from GitHub. Extract the files and add the directory that QuintTest.exe is in to your PATH environment variable, so it can be accessed from any directory.
+
+#### From source
+To install QuintTest from the source, clone the repository and install the requirements with pip. Make sure git, Python and pip are installed on your machine. Feel free to use venv to contain the installed libraries inside the project.
 
 ```
 git clone https://github.com/Quintium/QuintTest
@@ -11,12 +15,16 @@ cd QuintTest
 pip install -r requirements.txt
 ```
 
-Afterwards, add the QuintTest directory to your PATH environment variable, so it can be accessed from any directory.
+Finally, add the QuintTest directory to your PATH environment variable, so it can be accessed from any directory. Make sure to regularly run `git pull` to stay up-to-date.
 
 ### Usage
 To add an engine, you can either put it into the `engines/` directory or run QuintTest in a directory where the tested engine is located. 
 
-To run QuintTest, run the following command in a terminal:
+To run a released version of QuintTest, run the following command in a terminal:
+
+`QuintTest ...`
+
+To run QuintTest from the source, run the following command in a terminal:
 
 `python QuintTest.py ...`
 
