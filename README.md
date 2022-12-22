@@ -24,18 +24,19 @@ The available commands are:
 - test
 
 ### `test`
-The `test` command allows you to compare the performance of one or multiple chess engines against a base engine. It plays a specified number of games between the engines, using the specified time control per move. You can also specify the number of games to run simultaneously (concurrency), and the output path for the test results.
+The `test` command allows you to compare the performance of one or multiple chess engines against a base engine. It plays a specified number of games between the engines, using the specified time control. You can also specify the number of games to run simultaneously (concurrency), and the output path for the test results.
 
 #### Usage
 ```QuintTest test TEST_ENGINES [TEST_ENGINES ...] BASE_ENGINE [OPTIONS]```
 
 #### Options
 ```
--h, --help                              Show help message and exit                       optional
--g, --games GAMES                       Number of games to play in an engine match       required
--t, --time SECONDS                      Time control in seconds per move                 required
--c, --concurrency CONCURRENCY           Number of games to run simultaneously            optional - default: 1
--o, --output OUTPUT_NAME                Output name for test results                     optional - default: None
+-h, --help                              Show help message and exit                              optional
+-g, --games GAMES                       Number of games to play in an engine match              required
+-t, --time TIMECONTROL                  Time control, for example 5+0.1 for 5s base 
+                                        time and 0.1s increment and =0.2 for 0.2s per move      required
+-c, --concurrency CONCURRENCY           Number of games to run simultaneously                   optional - default: 1
+-o, --output OUTPUT_NAME                Output name for test results                            optional - default: None
 ```
 
 #### Example
