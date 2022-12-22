@@ -31,12 +31,13 @@ The `test` command allows you to compare the performance of one or multiple ches
 
 #### Options
 ```
--h, --help                              Show help message and exit                              optional
--g, --games GAMES                       Number of games to play in an engine match              required
--t, --time TIMECONTROL                  Time control, for example 5+0.1 for 5s base 
-                                        time and 0.1s increment and =0.2 for 0.2s per move      required
--c, --concurrency CONCURRENCY           Number of games to run simultaneously                   optional - default: 1
--o, --output OUTPUT_NAME                Output name for test results                            optional - default: None
+-h, --help                          Show help message and exit                          optional
+-g, --games GAMES                   Number of games to play in an engine match          required
+-t, --time TIMECONTROL              Time control, for example 5+0.1 for 5s base         required
+                                    time and 0.1s increment and =0.2 for 0.2s 
+                                    per move      
+-c, --concurrency CONCURRENCY       Number of games to run simultaneously               optional - default: 1
+-o, --output OUTPUT_NAME            Output name for test results                        optional - default: None
 ```
 
 #### Example
