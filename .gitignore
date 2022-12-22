@@ -3,6 +3,7 @@ __pycache__/
 *.spec
 temp/
 build/
+command.bat
 
 # Ignore all engine and output files
 engines/*

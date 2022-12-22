@@ -38,6 +38,7 @@ class MatchTime:
     whiteTime: float
     blackTime: float
     startTime: float
+    timePassed: float
     
     # Set up start of match
     def __init__(self, timeControl: TimeControl) -> None:
@@ -60,21 +61,23 @@ class MatchTime:
 
     # Stop clock, deduct used time
     def stop(self, turn: chess.Color) -> None:
-        timePassed = time.time() - self.startTime
+        self.timePassed = time.time() - self.startTime
         self.startTime = None
 
         # Deduct time used
         if self.timeControl.exactTime == None:
             if turn == chess.WHITE:
-                self.whiteTime -= timePassed
+                self.whiteTime -= self.timePassed
+                self.whiteTime += self.timeControl.increment
             else:
-                self.blackTime -= timePassed
+                self.blackTime -= self.timePassed
+                self.blackTime += self.timeControl.increment
 
     # Check if engine that moved flagged
     def flagged(self):
         if self.timeControl.exactTime == None:
-            return self.whiteTime <= 0 or self.blackTime <= 0
+            return self.whiteTime < 0 or self.blackTime < 0
         else:
-            return False
+            return self.timePassed > self.timeControl.exactTime + 0.1 # .1s tolerance in exact time
         
 
