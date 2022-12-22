@@ -1,6 +1,7 @@
 import math
 from multiprocessing import Manager, Value, Lock, Queue, Event
 from src.Engine import Engine
+from src.TimeControl import TimeControl
 
 # Class that contains results of an engine match
 class Results:
@@ -9,16 +10,16 @@ class Results:
     engine1Wins: int
     engine2Wins: int
     draws: int
-    timeLimit: float
+    timeControl: TimeControl
 
     # Create results based ong given stats
-    def __init__(self, engine1: Engine, engine2: Engine, engine1Wins: int, engine2Wins: int, draws: int, timeLimit: float):
+    def __init__(self, engine1: Engine, engine2: Engine, engine1Wins: int, engine2Wins: int, draws: int, timeControl: TimeControl):
         self.engine1 = engine1
         self.engine2 = engine2
         self.engine1Wins = engine1Wins
         self.engine2Wins = engine2Wins
         self.draws = draws
-        self.timeLimit = timeLimit
+        self.timeControl = timeControl
 
     # Get match stats
     def getEngine1Wins(self) -> int:
@@ -82,7 +83,7 @@ class Results:
     # Convert stats to multi-line string
     def statString(self):
         message = (f"Engine match: {self.engine1.fullName()} vs {self.engine2.fullName()}:\n"
-                   f"Time Limit: {self.timeLimit}\n"
+                   f"Time control: {self.timeControl.toString()}\n"
                    f"Games played: {self.gameAmount()}\n"
                    f"Final score: {self.scoreString()}\n"
                    f"Elo difference: {self.eloDifferenceString()}\n"
@@ -97,19 +98,19 @@ class SharedResults(Results):
     engine1Wins: Value
     engine2Wins: Value
     draws: Value
-    timeLimit: float
+    timeControl: TimeControl
     stop: Event # Event for stopping match prematurely
     lock: Lock # Lock for incrementing wins/draws
     eventQueue: Queue # Queue for events from child processes to main process
 
     # Create shared results using stats and multiprocessing manager
-    def __init__(self, engine1: Engine, engine2: Engine, engine1Wins: int, engine2Wins: int, draws: int, timeLimit: float, manager: Manager):
+    def __init__(self, engine1: Engine, engine2: Engine, engine1Wins: int, engine2Wins: int, draws: int, timeControl: TimeControl, manager: Manager):
         self.engine1 = engine1
         self.engine2 = engine2
         self.engine1Wins = manager.Value("i", engine1Wins)
         self.engine2Wins = manager.Value("i", engine2Wins)
         self.draws = manager.Value("i", draws)
-        self.timeLimit = timeLimit
+        self.timeControl = timeControl
         self.stop = manager.Event()
         self.lock = manager.Lock()
         self.eventQueue = manager.Queue()
@@ -156,7 +157,7 @@ class SharedResults(Results):
 
     # Converting to pure results object
     def toResults(self) -> Results:
-        return Results(self.engine1, self.engine2, self.getEngine1Wins(), self.getEngine2Wins(), self.getDraws(), self.timeLimit)
+        return Results(self.engine1, self.engine2, self.getEngine1Wins(), self.getEngine2Wins(), self.getDraws(), self.timeControl)
 
 # General class for events
 class Event:
