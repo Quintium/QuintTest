@@ -9,6 +9,12 @@ command.bat
 engines/*
 output/*
 
+# Ignore CLOP files
+*.clop
+*.dat
+*.log
+clop-quinttest-options.yaml
+
 # Ignore files that should be kept while switching branches
 share/*
 

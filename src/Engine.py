@@ -25,7 +25,7 @@ class Engine:
         
         # Add command line arguments to name
         if self.args:
-            name += "_".join([str(arg) for arg in self.args])
+            name += "_" + "_".join([str(arg) for arg in self.args])
 
         return name
 
