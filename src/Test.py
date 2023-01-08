@@ -15,7 +15,7 @@ def test(testEngineNames: list, baseEngineName: str, games: int, timeControl: st
     for testEngineName in testEngineNames:
         # Complete engine match
         testEngine = Engine(testEngineName, [])
-        results = src.EngineMatch.engineMatch([testEngine, baseEngine], games, timeControl, processes, games)
+        results = src.EngineMatch.engineMatch([testEngine, baseEngine], games, timeControl, processes)
 
         # Print out match stats
         statString = results.statString()

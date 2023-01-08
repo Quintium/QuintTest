@@ -25,7 +25,7 @@ class Engine:
         
         # Add command line arguments to name
         if self.args:
-            name += "_".join([str(arg) for arg in self.args])
+            name += "_" + "_".join([str(arg) for arg in self.args])
 
         return name
 
@@ -45,12 +45,16 @@ class Engine:
 
     # Get path of engine executable
     def getPath(self) -> None:
-        # Check if file exists in main directory
+        # Check if file exists in path
         if self.pathExec(self.name):
             return self.name
 
+        # Check if file exists in main directory
+        if self.pathExec(os.getcwd() + "/" + self.name):
+            return os.getcwd() + "/" + self.name
+
         # Check if file exists in engine directory
-        installedPath = os.path.dirname(os.path.abspath(sys.argv[0])) + "\\engines\\" + self.name
+        installedPath = os.path.dirname(os.path.abspath(sys.argv[0])) + "/engines/" + self.name
         if self.pathExec(installedPath):
             return installedPath
         

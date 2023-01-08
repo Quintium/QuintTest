@@ -7,7 +7,7 @@ from src.Results import Results, SharedResults, MatchEvent, ErrorEvent
 from src.TimeControl import TimeControl, MatchTime
 
 # Play match between two engines
-def engineMatch(engines: list, games: int, timeControl: TimeControl, processes: int, totalGames: int) -> Results:
+def engineMatch(engines: list, games: int, timeControl: TimeControl, processes: int, suppressOutput: bool = False) -> Results:
     # Handle keyboard interrupt in main process
     def handleKeyboardInterrupt(sig: int, frame: FrameInfo):
         sharedResults.stopMatch()
@@ -16,9 +16,10 @@ def engineMatch(engines: list, games: int, timeControl: TimeControl, processes: 
     manager = Manager()
     sharedResults = SharedResults(engines[0], engines[1], 0, 0, 0, timeControl, manager)
 
-    # Create match output (engine names and progress bar)
-    print(f"Engine match: {engines[0].fullName()} vs {engines[1].fullName()}")
-    progressBar = tqdm(desc=f"Score: {sharedResults.scoreString()}", total=totalGames, dynamic_ncols=True, unit="games")
+    if not suppressOutput:
+        # Create match output (engine names and progress bar)
+        print(f"Engine match: {engines[0].fullName()} vs {engines[1].fullName()}")
+        progressBar = tqdm(desc=f"Score: {sharedResults.scoreString()}", total=games, dynamic_ncols=True, unit="games")
 
     # Create pool of processes
     with Pool(processes) as pool:
@@ -37,16 +38,19 @@ def engineMatch(engines: list, games: int, timeControl: TimeControl, processes: 
             while sharedResults.hasEvent():
                 event = sharedResults.getEvent()
                 if isinstance(event, MatchEvent):
-                    # Update score after completed match
-                    progressBar.set_description(f"Score: {sharedResults.scoreString()}")
-                    progressBar.update(1)
+                    if not suppressOutput:
+                        # Update score after completed match
+                        progressBar.set_description(f"Score: {sharedResults.scoreString()}")
+                        progressBar.update(1)
                 elif isinstance(event, ErrorEvent):
-                    # Output error after one is encountered
-                    progressBar.write(event.error)
+                    if not suppressOutput:
+                        # Output error after one is encountered
+                        progressBar.write(event.error)
 
-    # Cleanup
-    progressBar.close()
-    print()
+    if not suppressOutput:
+        # Cleanup
+        progressBar.close()
+        print()
 
     # Return pure results
     return sharedResults.toResults()

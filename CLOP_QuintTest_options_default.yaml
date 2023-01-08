@@ -1,0 +1,4 @@
+engine_name: "engine_name"                      # Name of the engine whose parameters will be optimized
+opponent_name: "opponent_name"                  # Name of the engine that the engine plays against (as a performance measure)
+opponent_parameters: [100, 200, 300]            # List of parameters for the opponent engine, float numbers separated by spaces
+time_control: "=0.1"                            # Time control for the match (e.g. 3+0, 5+1, =0.1)
