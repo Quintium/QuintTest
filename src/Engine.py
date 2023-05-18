@@ -1,19 +1,35 @@
+from __future__ import annotations
 import sys, os, subprocess, errno
 import chess, chess.engine
 
 # Class for managing engines and their executables
 class Engine:
     name: str
-    args: list
+    params: list
     path: str
 
     # Create engine based on name and command line arguments
-    def __init__(self, name: str, args: list):
+    def __init__(self, name: str, params: list):
         self.name = name
-        self.args = args
+        self.params = params
 
         # Save path of engine
         self.path = self.getPath()
+
+    # Initialize name and parameters from a full name
+    @classmethod
+    def fromName(cls, namePar: str):
+        if "_params_" in namePar:
+            # Parse name and parameters from string, like "QuintBot_params_300_500_0.5" -> "QuintBot", [300, 500, 0.5]
+            name = namePar[:namePar.index("_params_")]
+            paramsStr = namePar[namePar.index("_params_") + 8:].split("_")
+            params = [float(param) for param in paramsStr]
+        else:
+            # Case of no parameters
+            name = namePar
+            params = []
+
+        return cls(name, params)
 
     # Give full name of engine, potentially stripping of .exe and adding command line arguments
     def fullName(self) -> str:
@@ -24,8 +40,8 @@ class Engine:
             name = name[: name.find(".")]
         
         # Add command line arguments to name
-        if self.args:
-            name += "_" + "_".join([str(arg) for arg in self.args])
+        if self.params:
+            name += "_params_" + "_".join([str(arg) for arg in self.params])
 
         return name
 
@@ -63,4 +79,4 @@ class Engine:
 
     # Create engine process for engine
     def createProcess(self) -> chess.engine.SimpleEngine:
-        return chess.engine.SimpleEngine.popen_uci([self.path] + [str(arg) for arg in self.args], setpgrp=True) # New process group, so keyboard interrupts aren't passed on
+        return chess.engine.SimpleEngine.popen_uci([self.path] + [str(arg) for arg in self.params], setpgrp=True) # New process group, so keyboard interrupts aren't passed on
