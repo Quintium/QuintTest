@@ -11,10 +11,10 @@ def test(testEngineNames: list, baseEngineName: str, games: int, timeControl: st
     outputString = ""
 
     # Test every engine against the base engine separately
-    baseEngine = Engine(baseEngineName, [])
+    baseEngine = Engine.fromName(baseEngineName)
     for testEngineName in testEngineNames:
         # Complete engine match
-        testEngine = Engine(testEngineName, [])
+        testEngine = Engine.fromName(testEngineName)
         results = src.EngineMatch.engineMatch([testEngine, baseEngine], games, timeControl, processes)
 
         # Print out match stats
